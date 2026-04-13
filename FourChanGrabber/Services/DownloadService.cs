@@ -61,20 +61,21 @@ public class DownloadService : IDownloadService
                 fileSize = await DownloadViaHttpAsync(sourceUrl, tempFilePath, config, progress, ct);
             }
 
-            // Compute SHA256 hash
+            // Compute SHA256 hash for storage
             var fileHash = await ComputeSha256HashAsync(tempFilePath, ct);
 
             // Verify hash if expected hash provided
+            // 4Chan provides MD5, so we compute MD5 for comparison
             if (!string.IsNullOrEmpty(expectedHash))
             {
+                var actualMd5 = await ComputeMd5HashAsync(tempFilePath, ct);
                 var expectedHashLower = expectedHash.ToLowerInvariant();
-                var actualHashLower = fileHash.ToLowerInvariant();
 
-                if (!string.Equals(expectedHashLower, actualHashLower, StringComparison.OrdinalIgnoreCase))
+                if (!string.Equals(expectedHashLower, actualMd5, StringComparison.OrdinalIgnoreCase))
                 {
                     _logger.LogWarning(
                         "Hash mismatch for {Url}: expected {Expected}, got {Actual}",
-                        sourceUrl, expectedHashLower, actualHashLower);
+                        sourceUrl, expectedHashLower, actualMd5);
 
                     // Determine if this is retryable or corrupt based on retry config
                     var mismatchType = config.RetryAttempts > 0
@@ -87,7 +88,7 @@ public class DownloadService : IDownloadService
                         FileHash = fileHash,
                         FileSize = fileSize,
                         HashMismatch = mismatchType,
-                        ErrorMessage = $"Hash mismatch: expected {expectedHashLower}, got {actualHashLower}"
+                        ErrorMessage = $"Hash mismatch: expected {expectedHashLower}, got {actualMd5}"
                     };
                 }
             }
@@ -252,6 +253,18 @@ public class DownloadService : IDownloadService
             throw new InvalidOperationException("FlareSolverr returned invalid response");
         }
 
+        // Basic validation before decoding
+        if (string.IsNullOrEmpty(flareSolverrResponse.Solution.Response))
+        {
+            throw new InvalidOperationException("FlareSolverr returned empty response");
+        }
+
+        // Limit response size to prevent memory issues (100MB max)
+        if (flareSolverrResponse.Solution.Response.Length > 100_000_000)
+        {
+            throw new InvalidOperationException("FlareSolverr response too large");
+        }
+
         // Decode base64 response and write to temp file
         var decodedBytes = Convert.FromBase64String(flareSolverrResponse.Solution.Response);
 
@@ -269,6 +282,14 @@ public class DownloadService : IDownloadService
         using var sha256 = System.Security.Cryptography.SHA256.Create();
         await using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
         var hashBytes = await sha256.ComputeHashAsync(stream, ct);
+        return Convert.ToHexString(hashBytes).ToLowerInvariant();
+    }
+
+    private static async Task<string> ComputeMd5HashAsync(string filePath, CancellationToken ct)
+    {
+        using var md5 = System.Security.Cryptography.MD5.Create();
+        await using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        var hashBytes = await md5.ComputeHashAsync(stream, ct);
         return Convert.ToHexString(hashBytes).ToLowerInvariant();
     }
 
