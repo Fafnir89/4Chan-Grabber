@@ -1,0 +1,40 @@
+# Build results
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+
+# .NET
+*.user
+*.userosscache
+*.sln.docstates
+*.suo
+*.cache
+
+# NuGet
+*.nupkg
+**/packages/*
+!**/packages/repositories.config
+
+# VS
+.vs/
+*.rsuser
+
+# JetBrains Rider
+.idea/
+*.sln.iml
+
+# Mac
+.DS_Store
+
+# Logs
+*.log
+
+# Local data (will be created at runtime)
+data/
+media/
+logs/
+temp/
+
+# Config (may contain secrets)
+config.json
+appsettings.*.local.json
