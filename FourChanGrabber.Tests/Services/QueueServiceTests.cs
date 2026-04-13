@@ -332,15 +332,15 @@ public class QueueServiceTests : IDisposable
     #region HandleFailureAsync Tests
 
     [Fact]
-    public async Task HandleFailureAsync_ResetsToPendingForRetry_WhenCanRetryAndAttemptsBelowMax()
+    public async Task HandleFailureAsync_ResetsToPendingForRetry_WhenRetryAttemptsRemainingAndAttemptsBelowMax()
     {
         // Arrange
         var item = _dbContext.CreateDownloadQueue(status: DownloadStatus.Downloading);
         item.Attempts = 1; // Below max of 3
         await _dbContext.Context.SaveChangesAsync();
 
-        // Act
-        await _sut.HandleFailureAsync(item.Id, "Network error", canRetry: true);
+        // Act - retryAttemptsRemaining = maxRetries - currentAttempts = 3 - 1 = 2
+        await _sut.HandleFailureAsync(item.Id, "Network error", retryAttemptsRemaining: 2);
 
         // Assert
         var updatedItem = await _dbContext.Context.DownloadQueue.FindAsync(item.Id);
@@ -349,15 +349,15 @@ public class QueueServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task HandleFailureAsync_MarksAsFailed_WhenCanRetryButMaxAttemptsReached()
+    public async Task HandleFailureAsync_MarksAsFailed_WhenRetryAttemptsExhausted()
     {
         // Arrange
         var item = _dbContext.CreateDownloadQueue(status: DownloadStatus.Downloading);
         item.Attempts = 3; // At max of 3
         await _dbContext.Context.SaveChangesAsync();
 
-        // Act
-        await _sut.HandleFailureAsync(item.Id, "Network error", canRetry: true);
+        // Act - retryAttemptsRemaining = maxRetries - currentAttempts = 3 - 3 = 0
+        await _sut.HandleFailureAsync(item.Id, "Network error", retryAttemptsRemaining: 0);
 
         // Assert
         var updatedItem = await _dbContext.Context.DownloadQueue.FindAsync(item.Id);
@@ -366,15 +366,15 @@ public class QueueServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task HandleFailureAsync_MarksAsFailed_WhenCannotRetry()
+    public async Task HandleFailureAsync_MarksAsFailed_WhenRetryAttemptsRemainingIsZero()
     {
         // Arrange
         var item = _dbContext.CreateDownloadQueue(status: DownloadStatus.Downloading);
         item.Attempts = 0;
         await _dbContext.Context.SaveChangesAsync();
 
-        // Act
-        await _sut.HandleFailureAsync(item.Id, "Corrupt file", canRetry: false);
+        // Act - retryAttemptsRemaining = 0 means no retries allowed
+        await _sut.HandleFailureAsync(item.Id, "Corrupt file", retryAttemptsRemaining: 0);
 
         // Assert
         var updatedItem = await _dbContext.Context.DownloadQueue.FindAsync(item.Id);
@@ -386,7 +386,7 @@ public class QueueServiceTests : IDisposable
     public async Task HandleFailureAsync_DoesNothingForNonExistentItem()
     {
         // Act & Assert - Should not throw
-        await _sut.HandleFailureAsync(99999, "error", canRetry: true);
+        await _sut.HandleFailureAsync(99999, "error", retryAttemptsRemaining: 0);
     }
 
     #endregion

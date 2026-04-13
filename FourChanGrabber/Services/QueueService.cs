@@ -108,12 +108,12 @@ public class QueueService : IQueueService
         await _context.SaveChangesAsync(ct);
     }
 
-    public async Task HandleFailureAsync(int queueId, string errorMessage, bool canRetry, CancellationToken ct = default)
+    public async Task HandleFailureAsync(int queueId, string errorMessage, int retryAttemptsRemaining, CancellationToken ct = default)
     {
         var queueItem = await _context.DownloadQueue.FindAsync(new object[] { queueId }, ct);
         if (queueItem == null) return;
 
-        var shouldRetry = canRetry && queueItem.Attempts < 3;  // Default max retries
+        var shouldRetry = retryAttemptsRemaining > 0 && queueItem.Attempts < 3;  // Default max retries
 
         if (shouldRetry)
         {

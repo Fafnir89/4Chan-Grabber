@@ -10,7 +10,7 @@ public interface IQueueService
     Task<bool> TryLockItemAsync(int queueId, CancellationToken ct = default);
     Task UpdateStatusAsync(int queueId, DownloadStatus status, string? errorMessage = null, CancellationToken ct = default);
     Task CompleteDownloadAsync(int queueId, string fileHash, long fileSize, CancellationToken ct = default);
-    Task HandleFailureAsync(int queueId, string errorMessage, bool canRetry, CancellationToken ct = default);
+    Task HandleFailureAsync(int queueId, string errorMessage, int retryAttemptsRemaining, CancellationToken ct = default);
     Task<WorkerStatus> GetStatusAsync(CancellationToken ct = default);
     Task<QueueStats> GetStatsAsync(CancellationToken ct = default);
 }

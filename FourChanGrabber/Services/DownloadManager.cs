@@ -264,7 +264,7 @@ public class DownloadManager : BackgroundService
         }
         else
         {
-            await HandleDownloadFailureAsync(queueService, item.Id, result, ct);
+            await HandleDownloadFailureAsync(queueService, item.Id, item.Attempts, config, result, ct);
         }
     }
 
@@ -278,17 +278,18 @@ public class DownloadManager : BackgroundService
     }
 
     private async Task HandleDownloadFailureAsync(
-        IQueueService queueService, int queueId, DownloadResult result, CancellationToken ct)
+        IQueueService queueService, int queueId, int currentAttempts, ImageSourceConfig config, DownloadResult result, CancellationToken ct)
     {
         // A corrupt hash means the file is bad and retrying won't help.
         // All other failures (network, HTTP errors) may be retried.
         var canRetry = result.HashMismatch != HashMismatchType.Corrupt;
         var errorMessage = result.ErrorMessage ?? "Unknown error";
+        var retryAttemptsRemaining = canRetry ? config.RetryAttempts - currentAttempts : 0;
 
-        await queueService.HandleFailureAsync(queueId, errorMessage, canRetry, ct);
+        await queueService.HandleFailureAsync(queueId, errorMessage, retryAttemptsRemaining, ct);
         _logger.LogWarning(
-            "Failed queue item {Id} (canRetry={CanRetry}): {Error}",
-            queueId, canRetry, errorMessage);
+            "Failed queue item {Id} (retryAttemptsRemaining={RetryAttemptsRemaining}): {Error}",
+            queueId, retryAttemptsRemaining, errorMessage);
     }
 
     // ─── Helpers ──────────────────────────────────────────────────────────────────
