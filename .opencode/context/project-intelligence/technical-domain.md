@@ -1,108 +1,123 @@
-<!-- Context: project-intelligence/technical | Priority: high | Version: 1.0 | Updated: 2025-01-12 -->
+<!-- Context: project-intelligence/technical | Priority: critical | Version: 1.0 | Updated: 2026-04-13 -->
 
 # Technical Domain
 
-> Document the technical foundation, architecture, and key decisions.
+> Blazor Server media grabber using 4chan API with SQLite persistence.
 
 ## Quick Reference
 
-- **Purpose**: Understand how the project works technically
-- **Update When**: New features, refactoring, tech stack changes
-- **Audience**: Developers, DevOps, technical stakeholders
+- **Stack**: Blazor Server, .NET 8, SQLite, Entity Framework Core
+- **Purpose**: Download and catalog media from 4chan boards
+- **Update When**: Database schema changes, new entities, migration applied
 
-## Primary Stack
+## Tech Stack
 
-| Layer | Technology | Version | Rationale |
-|-------|-----------|---------|-----------|
-| Language | [e.g., TypeScript] | [Version] | [Why this language] |
-| Framework | [e.g., Node.js] | [Version] | [Why this framework] |
-| Database | [e.g., PostgreSQL] | [Version] | [Why this database] |
-| Infrastructure | [e.g., AWS, Vercel] | [N/A] | [Why this infra] |
-| Key Libraries | [List important ones] | [Versions] | [Why each matters] |
+| Layer | Technology | Version | Notes |
+|-------|-----------|---------|-------|
+| Framework | Blazor Server | .NET 8 | Interactive web UI |
+| Database | SQLite | 3.x | Local file-based storage |
+| ORM | Entity Framework Core | 8.x | Fluent API configuration |
+| Language | C# | 12 | Nullable reference types |
 
-## Architecture Pattern
+## Data Model
 
 ```
-Type: [Monolith | Microservices | Serverless | Agent-based | Hybrid]
-Pattern: [Brief description]
-Diagram: [Link to architecture diagram if exists]
+ImageSource (1) ─────< DownloadQueue (N)
+    │                      │
+    │                      ├────1 DownloadQueue_ChanBoard
+    │                      
+    └────< MediaData (N)
+                 │
+                 ├────1 ChanBoardData
+                 │
+                 └────< Tag (N)
 ```
 
-### Why This Architecture?
+### Entities
 
-[Explain the business and technical reasons for this architecture choice. What problem does this architecture solve? What were alternatives considered?]
+| Entity | Purpose | Key Fields |
+|--------|---------|------------|
+| `ImageSource` | Media source (e.g., FourChan) with config | Name, BaseUrl, ConfigJson |
+| `DownloadQueue` | Download task queue | SourceUrl, TargetPath, Status, Priority |
+| `DownloadQueue_ChanBoard` | Board-specific queue metadata | Board, ThreadUrl, ThreadId |
+| `MediaData` | Downloaded file record | FileName, FilePath, FileHash, MediaType |
+| `ChanBoardData` | Board-specific media metadata | Board, ThreadUrl, ThreadId |
+| `Tag` | Media tags (composite key) | MediaDataId, TagText |
+
+### Enums
+
+| Enum | Values |
+|------|--------|
+| `DownloadStatus` | Pending, Downloading, Completed, Failed, Cancelled |
+| `MediaType` | Unknown, Image, Video |
 
 ## Project Structure
 
 ```
-[Project Root]
-├── src/                    # Source code
-├── tests/                  # Test files
-├── docs/                   # Documentation
-├── scripts/                # Build/deploy scripts
-└── [Other key directories]
+FourChanGrabber/
+├── Data/
+│   ├── Models/
+│   │   ├── Enums/
+│   │   │   ├── DownloadStatus.cs
+│   │   │   └── MediaType.cs
+│   │   ├── ImageSource.cs
+│   │   ├── DownloadQueue.cs
+│   │   ├── DownloadQueue_ChanBoard.cs
+│   │   ├── MediaData.cs
+│   │   ├── ChanBoardData.cs
+│   │   └── Tag.cs
+│   ├── MediaDbContext.cs
+│   ├── DatabaseSeeder.cs
+│   └── Migrations/
+│       └── 20260413174710_InitialCreate.cs
+└── Pages/
+    └── Error.cshtml.cs
 ```
 
-**Key Directories**:
-- `src/` - Contains all application logic organized by [module/feature/domain]
-- `tests/` - [How tests are organized]
-- `docs/` - [What documentation lives here]
+## EF Core Configuration
 
-## Key Technical Decisions
+**Location**: `FourChanGrabber/Data/MediaDbContext.cs`
 
-| Decision | Rationale | Impact |
-|----------|-----------|--------|
-| [Decision 1] | [Why this choice] | [What it enables] |
-| [Decision 2] | [Why this choice] | [What it enables] |
+- Fluent API for all entity configuration
+- Cascade delete on all foreign keys
+- Composite key on `Tag` entity
+- Unique index on `DownloadQueue_ChanBoard.DownloadQueueId`
+- Named indexes with `HasDatabaseName()`
 
-See `decisions-log.md` for full decision history with alternatives.
+## Database Seeder
 
-## Integration Points
+**Location**: `FourChanGrabber/Data/DatabaseSeeder.cs`
 
-| System | Purpose | Protocol | Direction |
-|--------|---------|----------|-----------|
-| [API 1] | [What it does] | [REST/GraphQL/gRPC] | [Inbound/Outbound] |
-| [Database] | [What it stores] | [PostgreSQL/Mongo/etc] | [Internal] |
-| [Service] | [What it provides] | [HTTP/gRPC] | [Outbound] |
+Seeds default `ImageSource` entries:
+- **FourChan**: `https://a.4cdn.org`, 3 concurrent downloads, 2 req/s rate limit
+- **Archive**: disabled, fallback for archived content
 
-## Technical Constraints
+## Migrations
 
-| Constraint | Origin | Impact |
-|------------|--------|--------|
-| [Legacy systems] | [Business/Tech] | [What limitation it creates] |
-| [Compliance] | [Regulation] | [What must be followed] |
-| [Performance] | [SLAs] | [What must be met] |
+**Location**: `FourChanGrabber/Data/Migrations/`
 
-## Development Environment
+Initial migration: `20260413174710_InitialCreate.cs`
 
-```
-Setup: [Quick setup command or link]
-Requirements: [What developers need installed]
-Local Dev: [How to run locally]
-Testing: [How to run tests]
-```
+## 📂 Codebase References
 
-## Deployment
+**Core Infrastructure**:
+- `FourChanGrabber/Data/MediaDbContext.cs` - DbContext with Fluent API
+- `FourChanGrabber/Data/DatabaseSeeder.cs` - Database initialization
 
-```
-Environment: [Production/Staging/Development]
-Platform: [Where it deploys]
-CI/CD: [Pipeline used]
-Monitoring: [Tools for observability]
-```
+**Models**:
+- `FourChanGrabber/Data/Models/Enums/DownloadStatus.cs` - Download state enum
+- `FourChanGrabber/Data/Models/Enums/MediaType.cs` - Media type enum
+- `FourChanGrabber/Data/Models/ImageSource.cs` - Source entity with config
+- `FourChanGrabber/Data/Models/DownloadQueue.cs` - Queue entity
+- `FourChanGrabber/Data/Models/DownloadQueue_ChanBoard.cs` - Board metadata
+- `FourChanGrabber/Data/Models/MediaData.cs` - Media file entity
+- `FourChanGrabber/Data/Models/ChanBoardData.cs` - Board-specific media data
+- `FourChanGrabber/Data/Models/Tag.cs` - Tag entity (composite key)
 
-## Onboarding Checklist
-
-- [ ] Know the primary tech stack
-- [ ] Understand the architecture pattern and why it was chosen
-- [ ] Know the key project directories and their purpose
-- [ ] Understand major technical decisions and rationale
-- [ ] Know integration points and dependencies
-- [ ] Be able to set up local development environment
-- [ ] Know how to run tests and deploy
+**Migrations**:
+- `FourChanGrabber/Data/Migrations/20260413174710_InitialCreate.cs` - Initial schema
 
 ## Related Files
 
-- `business-domain.md` - Why this technical foundation exists
-- `business-tech-bridge.md` - How business needs map to technical solutions
-- `decisions-log.md` - Full decision history with context
+- `.opencode/context/project-intelligence/navigation.md` - Project overview
+- `.opencode/context/project-intelligence/business-domain.md` - Business context

@@ -1,11 +1,22 @@
+using FourChanGrabber.Data;
 using Microsoft.AspNetCore.Components.Web;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
+builder.Services.AddDbContext<MediaDbContext>(options =>
+    options.UseSqlite(builder.Configuration.GetConnectionString("MediaDb") ?? "Data Source=./data/4chan.db"));
+builder.Services.AddScoped<DatabaseSeeder>();
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var seeder = scope.ServiceProvider.GetRequiredService<DatabaseSeeder>();
+    await seeder.SeedAsync();
+}
 
 if (!app.Environment.IsDevelopment())
 {

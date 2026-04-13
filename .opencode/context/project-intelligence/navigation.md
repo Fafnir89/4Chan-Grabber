@@ -1,8 +1,15 @@
-<!-- Context: project-intelligence/nav | Priority: high | Version: 1.0 | Updated: 2025-01-12 -->
+<!-- Context: project-intelligence/nav | Priority: critical | Version: 1.1 | Updated: 2026-04-13 -->
 
 # Project Intelligence
 
 > Start here for quick project understanding. These files bridge business and technical domains.
+
+## Quick Overview
+
+- **Project**: 4Chan Grabber - Blazor Server media downloader
+- **Stack**: .NET 8, Blazor Server, SQLite, Entity Framework Core
+- **Location**: `FourChanGrabber/`
+- **Status**: Core data layer complete (entities, DbContext, migrations, seeder)
 
 ## Structure
 
@@ -10,8 +17,7 @@
 .opencode/context/project-intelligence/
 ├── navigation.md              # This file - quick overview
 ├── business-domain.md         # Business context and problem statement
-├── technical-domain.md        # Stack, architecture, technical decisions
-├── business-tech-bridge.md    # How business needs map to solutions
+├── technical-domain.md        # Stack, architecture, data model
 ├── decisions-log.md           # Major decisions with rationale
 └── living-notes.md            # Active issues, debt, open questions
 ```
@@ -20,12 +26,35 @@
 
 | What You Need | File | Description |
 |---------------|------|-------------|
+| Database schema | `docs/database-schema.md` | Current table structure, columns, indexes, relationships |
 | Understand the "why" | `business-domain.md` | Problem, users, value proposition |
-| Understand the "how" | `technical-domain.md` | Stack, architecture, integrations |
-| See the connection | `business-tech-bridge.md` | Business → technical mapping |
+| Understand the "how" | `technical-domain.md` | Stack, architecture, data model overview |
 | Know the context | `decisions-log.md` | Why decisions were made |
 | Current state | `living-notes.md` | Active issues and open questions |
-| All of the above | Read all files in order | Full project intelligence |
+
+## Project Documentation
+
+```
+docs/
+└── database-schema.md      # Current database schema (source of truth)
+    └── (other docs)
+```
+
+**Important:** Use `docs/database-schema.md` for current database structure, not old plan files.
+
+## Current Implementation State
+
+**Completed**:
+- ✅ 6 Entity models (ImageSource, DownloadQueue, DownloadQueue_ChanBoard, MediaData, ChanBoardData, Tag)
+- ✅ 2 Enums (DownloadStatus, MediaType)
+- ✅ MediaDbContext with Fluent API configuration
+- ✅ DatabaseSeeder for default sources
+- ✅ Initial EF Core migration
+
+**In Progress / Planned**:
+- 🔄 Download service implementation
+- 🔄 Blazor UI components
+- 🔄 4chan API integration
 
 ## Usage
 
