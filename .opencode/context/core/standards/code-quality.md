@@ -162,3 +162,27 @@ function createUser(userData) { return db.insert('users', userData); }
 ✅ Test in isolation
 
 **Golden Rule**: If you can't easily test it, refactor it.
+
+---
+
+## Project Context
+
+> **Important**: This project is a **single-user personal project**. No security review for external attack vectors is required.
+
+**Implications**:
+- No need to validate paths against traversal attacks (user controls all inputs)
+- No need to sanitize user-provided HTML/scripts (no other users)
+- No authentication/authorization checks required
+- Focus on functionality and maintainability, not hardening
+
+**When to skip security checks**:
+- Path validation for file operations (user controls TargetPath in DB)
+- CSRF/XSS protection (single user, no shared sessions)
+- Input sanitization for stored data (only one user writes to DB)
+- Rate limiting between different users (not applicable)
+
+**Still required**:
+- Basic error handling and validation for correctness
+- Data integrity (hash verification, file corruption detection)
+- Resource cleanup (no memory leaks)
+- Graceful degradation (service failures)
