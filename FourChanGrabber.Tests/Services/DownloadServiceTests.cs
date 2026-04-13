@@ -122,7 +122,8 @@ public class DownloadServiceTests : IDisposable
         var sourceUrl = "https://example.com/image.jpg";
         var targetPath = Path.Combine(_tempDirectory, "image.jpg");
 
-        // Create existing file
+        // Create the temp directory and pre-existing target file to test overwrite behavior
+        Directory.CreateDirectory(_tempDirectory);
         await File.WriteAllTextAsync(targetPath, "old content");
         Assert.True(File.Exists(targetPath));
 
@@ -141,8 +142,9 @@ public class DownloadServiceTests : IDisposable
     public async Task DownloadFileAsync_HttpError_ReturnsFailureResult()
     {
         // Arrange
+        // Note: Do NOT call EnsureSuccessStatusCode() here — the service calls it internally.
+        // Calling it in the Arrange would throw immediately before the mock is even used.
         var response = new HttpResponseMessage(HttpStatusCode.NotFound);
-        response.EnsureSuccessStatusCode(); // Will throw
         SetupMockHttpClientFactory("Download", response);
 
         var sourceUrl = "https://example.com/image.jpg";
@@ -273,12 +275,14 @@ public class DownloadServiceTests : IDisposable
         var testContent = "test content"u8.ToArray();
         var base64Content = Convert.ToBase64String(testContent);
 
+        // IMPORTANT: System.Text.Json is case-sensitive by default.
+        // Property names must match the C# class (PascalCase: Solution, Response, Url).
         var flareSolverrResponse = new
         {
-            solution = new
+            Solution = new
             {
-                response = base64Content,
-                url = "https://example.com/image.jpg"
+                Response = base64Content,
+                Url = "https://example.com/image.jpg"
             }
         };
 
@@ -349,12 +353,14 @@ public class DownloadServiceTests : IDisposable
     public async Task DownloadFileAsync_FlareSolverrEmptyResponseString_ThrowsException()
     {
         // Arrange - Response with empty response string
+        // IMPORTANT: System.Text.Json is case-sensitive by default.
+        // Property names must match the C# class (PascalCase: Solution, Response, Url).
         var flareSolverrResponse = new
         {
-            solution = new
+            Solution = new
             {
-                response = "",
-                url = "https://example.com/image.jpg"
+                Response = "",
+                Url = "https://example.com/image.jpg"
             }
         };
         SetupMockHttpClientFactory("FlareSolverr",
@@ -378,14 +384,18 @@ public class DownloadServiceTests : IDisposable
     [Fact]
     public async Task DownloadFileAsync_FlareSolverrResponseTooLarge_ThrowsException()
     {
-        // Arrange - Response larger than 100MB
-        var largeContent = new string('x', 100_000_001); // Just over 100MB limit
+        // Arrange - Response field larger than the 100,000,000-character limit.
+        // Use a string of 'A' chars (valid base64) that exceeds the limit directly,
+        // avoiding the expensive step of encoding 100MB of actual bytes.
+        // IMPORTANT: System.Text.Json is case-sensitive by default.
+        // Property names must match the C# class (PascalCase: Solution, Response, Url).
+        var oversizedBase64Response = new string('A', 100_000_001); // Just over the 100M char limit
         var flareSolverrResponse = new
         {
-            solution = new
+            Solution = new
             {
-                response = Convert.ToBase64String(largeContent.ToArray().Select(x => (byte)x).ToArray()),
-                url = "https://example.com/image.jpg"
+                Response = oversizedBase64Response,
+                Url = "https://example.com/image.jpg"
             }
         };
         SetupMockHttpClientFactory("FlareSolverr",
@@ -426,20 +436,28 @@ public class DownloadServiceTests : IDisposable
             .Callback<HttpRequestMessage, CancellationToken>((_, _) => requestTimes.Add(DateTime.UtcNow))
             .ReturnsAsync(() => CreateHttpResponseMessage(testContent));
 
+        // Use lambda overload so a fresh HttpClient is created per call.
+        // The service disposes the client after each download (using var client = ...),
+        // so returning the same instance would cause ObjectDisposedException on calls 2 and 3.
         _mockHttpClientFactory
             .Setup(x => x.CreateClient("Download"))
-            .Returns(new HttpClient(mockHandler.Object));
+            .Returns(() => new HttpClient(mockHandler.Object));
 
         var config = new SourceConfig { RateLimitPerSecond = 10 }; // 100ms between requests
         var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
 
         var sut = new DownloadService(_mockHttpClientFactory.Object, _mockLogger.Object, tempDir);
 
+        // Use a unique host per test run to avoid pollution from the static _lastRequestTimes
+        // dictionary that persists across test instances. All 3 requests use the SAME unique
+        // host so rate limiting still applies between them.
+        var uniqueHost = Guid.NewGuid().ToString("N");
+
         // Act - Make multiple requests to same host
         for (int i = 0; i < 3; i++)
         {
             await sut.DownloadFileAsync(
-                $"https://example.com/image{i}.jpg",
+                $"https://{uniqueHost}.example.com/image{i}.jpg",
                 Path.Combine(tempDir, $"image{i}.jpg"),
                 null,
                 config);
@@ -515,7 +533,8 @@ public class DownloadServiceTests : IDisposable
         var config = new SourceConfig();
 
         // Act & Assert
-        await Assert.ThrowsAsync<OperationCanceledException>(
+        // TaskCanceledException inherits from OperationCanceledException; ThrowsAnyAsync accepts either
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
             () => _sut.DownloadFileAsync(sourceUrl, targetPath, null, config, ct: cts.Token));
     }
 

@@ -377,17 +377,21 @@ public class DownloadManagerInternalTests
     public void GetOrCreateSemaphore_IsThreadSafe()
     {
         // Arrange
+        // Use real ConfigurationBuilder — Mock<IConfiguration> cannot mock extension methods like GetValue<T>()
         var mockScopeFactory = new Mock<IServiceScopeFactory>();
         var mockLogger = new Mock<ILogger<DownloadManager>>();
-        var mockConfiguration = new Mock<IConfiguration>();
-
-        mockConfiguration.Setup(c => c["downloadManager:tempDirectory"]).Returns("./temp");
-        mockConfiguration.Setup(c => c.GetValue<int>("downloadManager:pollIntervalSeconds", 5)).Returns(5);
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["downloadManager:tempDirectory"] = "./temp",
+                ["downloadManager:pollIntervalSeconds"] = "5"
+            })
+            .Build();
 
         var downloadManager = new DownloadManager(
             mockScopeFactory.Object,
             mockLogger.Object,
-            mockConfiguration.Object);
+            configuration);
 
         var sourceId = 1;
         var maxConcurrent = 1;
@@ -410,17 +414,21 @@ public class DownloadManagerInternalTests
     public void ResolveSourceConfig_ReturnsConfig_WhenExists()
     {
         // Arrange
+        // Use real ConfigurationBuilder — Mock<IConfiguration> cannot mock extension methods like GetValue<T>()
         var mockScopeFactory = new Mock<IServiceScopeFactory>();
         var mockLogger = new Mock<ILogger<DownloadManager>>();
-        var mockConfiguration = new Mock<IConfiguration>();
-
-        mockConfiguration.Setup(c => c["downloadManager:tempDirectory"]).Returns("./temp");
-        mockConfiguration.Setup(c => c.GetValue<int>("downloadManager:pollIntervalSeconds", 5)).Returns(5);
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["downloadManager:tempDirectory"] = "./temp",
+                ["downloadManager:pollIntervalSeconds"] = "5"
+            })
+            .Build();
 
         var downloadManager = new DownloadManager(
             mockScopeFactory.Object,
             mockLogger.Object,
-            mockConfiguration.Object);
+            configuration);
 
         var config = new ImageSourceConfig
         {
@@ -448,17 +456,21 @@ public class DownloadManagerInternalTests
     public void ResolveSourceConfig_ReturnsDefaultConfig_WhenNotExists()
     {
         // Arrange
+        // Use real ConfigurationBuilder — Mock<IConfiguration> cannot mock extension methods like GetValue<T>()
         var mockScopeFactory = new Mock<IServiceScopeFactory>();
         var mockLogger = new Mock<ILogger<DownloadManager>>();
-        var mockConfiguration = new Mock<IConfiguration>();
-
-        mockConfiguration.Setup(c => c["downloadManager:tempDirectory"]).Returns("./temp");
-        mockConfiguration.Setup(c => c.GetValue<int>("downloadManager:pollIntervalSeconds", 5)).Returns(5);
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["downloadManager:tempDirectory"] = "./temp",
+                ["downloadManager:pollIntervalSeconds"] = "5"
+            })
+            .Build();
 
         var downloadManager = new DownloadManager(
             mockScopeFactory.Object,
             mockLogger.Object,
-            mockConfiguration.Object);
+            configuration);
 
         var configs = new Dictionary<int, ImageSourceConfig?>();
 

@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("FourChanGrabber.Tests")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5d1aafe5fe4787eb3ff56e511763f5fae70320ce")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+7e81df8a0a4b6df63354a169aa974f2f08a14c3e")]
 [assembly: System.Reflection.AssemblyProductAttribute("FourChanGrabber.Tests")]
 [assembly: System.Reflection.AssemblyTitleAttribute("FourChanGrabber.Tests")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

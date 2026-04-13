@@ -28,14 +28,18 @@ public class QueueService : IQueueService
 
     public async Task<bool> TryLockItemAsync(int queueId, CancellationToken ct = default)
     {
-        var rowsAffected = await _context.Database.ExecuteSqlInterpolatedAsync(
-            $@"UPDATE DownloadQueue 
-               SET Status = {(int)DownloadStatus.Downloading}, StartedAt = {DateTime.UtcNow} 
-               WHERE Id = {queueId} 
-               AND Status = {(int)DownloadStatus.Pending} 
-               AND StartedAt IS NULL", ct);
+        var item = await _context.DownloadQueue
+            .FirstOrDefaultAsync(
+                q => q.Id == queueId && q.Status == DownloadStatus.Pending && q.StartedAt == null,
+                ct);
 
-        return rowsAffected > 0;
+        if (item == null) return false;
+
+        item.Status = DownloadStatus.Downloading;
+        item.StartedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync(ct);
+        return true;
     }
 
     public async Task UpdateStatusAsync(int queueId, DownloadStatus status, string? errorMessage = null, CancellationToken ct = default)
