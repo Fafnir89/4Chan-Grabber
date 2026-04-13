@@ -17,6 +17,20 @@
 
 ---
 
+## Architecture Documentation
+
+**Detailed modular architecture is documented separately:**
+
+- [Modular Architecture Overview](./docs/modular-architecture.md) - System-level module map and API design
+- [DownloadQueue Module](./docs/modules/download-queue.md) - ⭐ **Next Discussion Topic**
+- [DownloadManager Module](./docs/modules/download-manager.md) - Background worker (depends on DownloadQueue)
+
+---
+
+*When resuming work, continue from [DownloadQueue Module](./docs/modules/download-queue.md) open questions.*
+
+---
+
 ## 1. Project Overview
 
 ### 1.1 Project Name
