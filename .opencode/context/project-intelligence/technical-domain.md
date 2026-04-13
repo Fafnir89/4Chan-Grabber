@@ -1,4 +1,4 @@
-<!-- Context: project-intelligence/technical | Priority: critical | Version: 1.0 | Updated: 2026-04-13 -->
+<!-- Context: project-intelligence/technical | Priority: critical | Version: 1.1 | Updated: 2026-04-13 -->
 
 # Technical Domain
 
@@ -8,7 +8,7 @@
 
 - **Stack**: Blazor Server, .NET 8, SQLite, Entity Framework Core
 - **Purpose**: Download and catalog media from 4chan boards
-- **Update When**: Database schema changes, new entities, migration applied
+- **Update When**: Database schema changes, new entities, migration applied, new services added
 
 ## Tech Stack
 
@@ -70,6 +70,20 @@ FourChanGrabber/
 │   ├── DatabaseSeeder.cs
 │   └── Migrations/
 │       └── 20260413174710_InitialCreate.cs
+├── Models/
+│   ├── SourceConfig.cs
+│   ├── WorkerStatus.cs
+│   ├── QueueStats.cs
+│   ├── DownloadResult.cs
+│   └── HashMismatchType.cs
+├── Services/
+│   ├── IQueueService.cs
+│   ├── QueueService.cs
+│   ├── IDownloadService.cs
+│   ├── DownloadService.cs
+│   └── DownloadManager.cs
+├── Controllers/
+│   └── DownloadQueueController.cs
 └── Pages/
     └── Error.cshtml.cs
 ```
@@ -98,6 +112,62 @@ Seeds default `ImageSource` entries:
 
 Initial migration: `20260413174710_InitialCreate.cs`
 
+## Download Manager
+
+**Location**: `FourChanGrabber/Services/DownloadManager.cs`
+
+Background service that polls `DownloadQueue` for pending items and downloads them concurrently.
+
+### Architecture
+
+| Component | Responsibility |
+|-----------|----------------|
+| `DownloadManager` | `BackgroundService` - polling loop, pause/resume, stale recovery |
+| `QueueService` | Queue operations (lock, complete, fail, stats) |
+| `DownloadService` | HTTP downloads with FlareSolverr + hash verification |
+
+### Configuration
+
+**Location**: `FourChanGrabber/appsettings.json`
+
+```json
+"downloadManager": {
+  "pollIntervalSeconds": 5,
+  "tempDirectory": "./temp/downloads",
+  "maxRetries": 3
+}
+```
+
+### Concurrency Model
+
+- Per-source concurrency via `ConcurrentDictionary<int, SemaphoreSlim>`
+- `MaxConcurrentDownloads` per `ImageSource` (default: 3)
+- `RateLimitPerSecond` per source (default: 2 req/s)
+- Active download count tracked via `Interlocked`
+
+### States
+
+`WorkerStatus` enum: `Idle`, `Running`, `Paused`
+
+### FlareSolverr Integration
+
+- Enabled when `CloudFlareProxyUrl` is set in `SourceConfig`
+- Proxy URL: `http://localhost:8191` (FlareSolverr container)
+- Bypasses CloudFlare challenges for 4chan requests
+
+### API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/downloadqueue` | List queue items with filtering |
+| GET | `/api/downloadqueue/{id}` | Get queue item details |
+| GET | `/api/downloadqueue/status` | Worker status |
+| GET | `/api/downloadqueue/stats` | Queue statistics |
+| POST | `/api/downloadqueue/pause` | Pause worker |
+| POST | `/api/downloadqueue/resume` | Resume worker |
+| POST | `/api/downloadqueue/{id}/retry` | Retry failed item |
+| DELETE | `/api/downloadqueue/{id}` | Delete queue item |
+
 ## 📂 Codebase References
 
 **Core Infrastructure**:
@@ -113,6 +183,23 @@ Initial migration: `20260413174710_InitialCreate.cs`
 - `FourChanGrabber/Data/Models/MediaData.cs` - Media file entity
 - `FourChanGrabber/Data/Models/ChanBoardData.cs` - Board-specific media data
 - `FourChanGrabber/Data/Models/Tag.cs` - Tag entity (composite key)
+
+**Download Manager Models**:
+- `FourChanGrabber/Models/SourceConfig.cs` - Download config DTO (MaxConcurrent, RateLimit, Proxy)
+- `FourChanGrabber/Models/WorkerStatus.cs` - Worker state enum (Idle/Running/Paused)
+- `FourChanGrabber/Models/QueueStats.cs` - Queue statistics (Pending/Downloading/Completed/Failed)
+- `FourChanGrabber/Models/DownloadResult.cs` - Download outcome with hash info
+- `FourChanGrabber/Models/HashMismatchType.cs` - Hash mismatch classification
+
+**Download Manager Services**:
+- `FourChanGrabber/Services/IQueueService.cs` - Queue operations interface
+- `FourChanGrabber/Services/QueueService.cs` - Queue operations implementation
+- `FourChanGrabber/Services/IDownloadService.cs` - Download operations interface
+- `FourChanGrabber/Services/DownloadService.cs` - HTTP download with FlareSolverr
+- `FourChanGrabber/Services/DownloadManager.cs` - BackgroundService for polling
+
+**Controllers**:
+- `FourChanGrabber/Controllers/DownloadQueueController.cs` - REST API for queue management
 
 **Migrations**:
 - `FourChanGrabber/Data/Migrations/20260413174710_InitialCreate.cs` - Initial schema

@@ -55,6 +55,8 @@ Download tasks polled by DownloadManager.
 | Priority | int | Default 0 | Higher = more priority |
 | Attempts | int | Default 0 | Retry count |
 | ErrorMessage | string | Nullable | Last error |
+| ExpectedHash | string | Nullable, Max 128 | Expected hash (MD5 from 4Chan) |
+| ExpectedHashType | string | Nullable, Max 20 | Hash type (e.g., "md5", "sha256") |
 | CreatedAt | DateTime | Required | Row creation |
 | StartedAt | DateTime | Nullable | Download started |
 | CompletedAt | DateTime | Nullable | Download finished |
@@ -228,7 +230,7 @@ FourChanGrabber/
 
 ## Notes
 
-1. **FileHash on queue** - Used to verify downloads against expected hash (4Chan provides MD5)
-2. **FileHash on MediaData** - Actual computed hash after download completes
+1. **ExpectedHash/ExpectedHashType on queue** - Hash provided by source (4Chan provides MD5) for verification after download
+2. **FileHash on MediaData** - Actual computed hash (SHA256) after download completes
 3. **Workflow** - DownloadManager reads `DownloadQueue_ChanBoard`, creates `ChanBoardData`, deletes `DownloadQueue_ChanBoard`
 4. **Partial indexes** - Not implemented (SQLite limitation with EF Core). Consider raw SQL if needed.
