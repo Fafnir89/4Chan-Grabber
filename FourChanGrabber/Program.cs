@@ -1,4 +1,5 @@
 using FourChanGrabber.Data;
+using FourChanGrabber.DownloadManager;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,6 +10,8 @@ builder.Services.AddServerSideBlazor();
 builder.Services.AddDbContext<MediaDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("MediaDb") ?? "Data Source=./data/4chan.db"));
 builder.Services.AddScoped<DatabaseSeeder>();
+builder.Services.AddSingleton<DownloadManager>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<DownloadManager>());
 
 var app = builder.Build();
 
