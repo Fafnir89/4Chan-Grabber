@@ -3,6 +3,7 @@ using FourChanGrabber.Data.Models;
 using FourChanGrabber.Data.Models.Enums;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Concurrent;
+using System.IO;
 
 namespace FourChanGrabber.DownloadManager;
 
@@ -91,7 +92,21 @@ internal class DownloadManager : BackgroundService
 
         try
         {
-            // actual downloadprocess
+            item.Status = DownloadStatus.Downloading;
+            await dbContext.SaveChangesAsync(stoppingToken);
+
+            using var client = new HttpClient();
+            var bytes = await client.GetByteArrayAsync(item.DownloadUrl, stoppingToken);
+
+            var directory = Path.GetDirectoryName(item.TargetPath);
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+                Directory.CreateDirectory(directory);
+
+            var targetPath = GetUniqueFilePath(item.TargetPath);
+            await System.IO.File.WriteAllBytesAsync(targetPath, bytes, stoppingToken);
+
+            item.Status = DownloadStatus.Completed;
+            await dbContext.SaveChangesAsync(stoppingToken);
         }
         catch
         {
@@ -100,5 +115,14 @@ internal class DownloadManager : BackgroundService
         }
 
         currentDownloads.TryTake(out _);
+    }
+
+    private string GetUniqueFilePath(string targetPath)
+    {
+        var dir = Path.GetDirectoryName(targetPath) ?? "";
+        var name = Path.GetFileNameWithoutExtension(targetPath);
+        var ext = Path.GetExtension(targetPath);
+        var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        return Path.Combine(dir, $"{name}_{timestamp}{ext}");
     }
 }

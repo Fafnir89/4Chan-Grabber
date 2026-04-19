@@ -32,7 +32,7 @@ public class MediaDbContext : DbContext
             entity.ToTable("DownloadQueue");
             entity.HasKey(e => e.Id);
             entity.Property(e => e.TargetPath).IsRequired().HasMaxLength(1000);
-            entity.Property(e => e.Status).IsRequired().HasDefaultValue(DownloadStatus.Pending);
+            entity.Property(e => e.Status).IsRequired().HasDefaultValue(DownloadStatus.New);
             entity.Property(e => e.ErrorMessage).HasMaxLength(4000);
 
             entity.HasIndex(e => e.Status).HasDatabaseName("IX_DownloadQueue_Status");
