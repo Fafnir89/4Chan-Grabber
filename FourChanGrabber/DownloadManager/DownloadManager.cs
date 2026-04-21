@@ -1,6 +1,7 @@
 using FourChanGrabber.Data;
 using FourChanGrabber.Data.Models;
 using FourChanGrabber.Data.Models.Enums;
+using FourChanGrabber.Services;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Concurrent;
 using System.IO;
@@ -19,12 +20,15 @@ public enum DownloadManagerConfigKey
 
 internal class DownloadManager : BackgroundService
 {
-    private IServiceScopeFactory scopeFactory;
+    private readonly IServiceScopeFactory scopeFactory;
+    private readonly HttpClientFactory httpClientFactory;
     private ConcurrentBag<Task> currentDownloads = new();
     private bool isPaused;
 
     private DateTime? throttleUntil;
     private int currentConcurrency;
+
+    private readonly int httpClientTimeoutSeconds = 30;  // TODO: make configurable
 
     private int maxConcurrentDownloads = 3;
     private int throttleDurationSeconds = 30;  // TODO: make configurable
@@ -32,9 +36,10 @@ internal class DownloadManager : BackgroundService
     private int loopIntervalMs = 1000;  // TODO: make configurable
     private int shutdownWaitMs = 500;  // TODO: make configurable
 
-    public DownloadManager(IServiceScopeFactory scopeFactory)
+    public DownloadManager(IServiceScopeFactory scopeFactory, HttpClientFactory httpClientFactory)
     {
         this.scopeFactory = scopeFactory;
+        this.httpClientFactory = httpClientFactory;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -138,7 +143,7 @@ internal class DownloadManager : BackgroundService
             item.Status = DownloadStatus.Downloading;
             await dbContext.SaveChangesAsync(stoppingToken);
 
-            using var client = new HttpClient();
+            var client = httpClientFactory.GetClient("DownloadManager", httpClientTimeoutSeconds);
             var bytes = await client.GetByteArrayAsync(item.DownloadUrl, stoppingToken);
 
             var directory = Path.GetDirectoryName(item.TargetPath);
@@ -155,11 +160,11 @@ internal class DownloadManager : BackgroundService
         }
         catch (HttpRequestException ex)
         {
-            if (ex.StatusCode == (HttpStatusCode)404)
+            if (ex.StatusCode == (HttpStatusCode)429)
             {
                 throttleUntil = DateTime.UtcNow.AddSeconds(throttleDurationSeconds);
                 currentConcurrency = 1;
-                Console.WriteLine($"[DOWNLOAD] Item {item.Id} failed with 404. Throttle activated.");
+                Console.WriteLine($"[DOWNLOAD] Item {item.Id} failed with 429. Throttle activated.");
                 Console.WriteLine($"[THROTTLE] Activated. Concurrency reduced to 1.");
             }
 
@@ -176,6 +181,32 @@ internal class DownloadManager : BackgroundService
             {
                 item.Status = DownloadStatus.Failed;
                 Console.WriteLine($"[DOWNLOAD] Item {item.Id} permanently failed after {item.RetryCount} retries.");
+            }
+
+            await dbContext.SaveChangesAsync(stoppingToken);
+        }
+        catch (OperationCanceledException)
+        {
+            item.ErrorMessage = "Download cancelled";
+            item.Status = DownloadStatus.Failed;
+            Console.WriteLine($"[DOWNLOAD] Item {item.Id} cancelled.");
+            await dbContext.SaveChangesAsync(stoppingToken);
+        }
+        catch (IOException ex)
+        {
+            item.RetryCount++;
+            item.ErrorMessage = $"IO Error: {ex.Message}";
+
+            if (item.RetryCount < maxRetries)
+            {
+                item.RequestTime = DateTime.UtcNow;
+                item.Status = DownloadStatus.New;
+                Console.WriteLine($"[DOWNLOAD] Item {item.Id} requeued after IO error. Retry {item.RetryCount}/{maxRetries}");
+            }
+            else
+            {
+                item.Status = DownloadStatus.Failed;
+                Console.WriteLine($"[DOWNLOAD] Item {item.Id} permanently failed after IO error.");
             }
 
             await dbContext.SaveChangesAsync(stoppingToken);
@@ -244,5 +275,11 @@ internal class DownloadManager : BackgroundService
             isPaused = false;
             Console.WriteLine($"[MANAGE] Resumed. Concurrency: {currentConcurrency}/{maxConcurrentDownloads}");
         }
+    }
+
+    public override void Dispose()
+    {
+        httpClientFactory.DisposeModule("DownloadManager");
+        base.Dispose();
     }
 }

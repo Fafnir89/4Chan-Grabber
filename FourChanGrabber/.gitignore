@@ -30,7 +30,6 @@
 *.log
 
 # Local data (will be created at runtime)
-data/
 media/
 logs/
 temp/
