@@ -43,7 +43,52 @@ public class DatabaseSeeder
             DownloadUrl = "https://thumb-cdn77.xvideos-cdn.com/f2f39725-0f0a-44a4-abd0-082bd350b5d8/0/xv_14_p.jpg",
             TargetPath = @"C:\Users\fafni\source\repos\4Chan Grabber\Downloads\test.jpg",
             ImageSourceId = fourChan.Id,
-            Status = DownloadStatus.New
+            Status = DownloadStatus.New,
+            RequestTime = DateTime.Now
+        };
+
+        _context.DownloadQueue.Add(download);
+
+        download = new DownloadQueue
+        {
+            DownloadUrl = "https://thumb-cdn77.xvideos-cdn.com/f2f39725-0f0a-44a4-abd0-082bd350b5d8/0/xv_14_p.jpg",
+            TargetPath = @"C:\Users\fafni\source\repos\4Chan Grabber\Downloads\test.jpg",
+            ImageSourceId = fourChan.Id,
+            Status = DownloadStatus.New,
+            RequestTime = DateTime.Now - new TimeSpan(0,0,1)
+        };
+
+        _context.DownloadQueue.Add(download);
+
+        download = new DownloadQueue
+        {
+            DownloadUrl = "https://thumb-cdn77.xvideos-cdn.com/f2f39725-0f0a-44a4-abd0-082bd350b5d8/0/xv.jpg",
+            TargetPath = @"C:\Users\fafni\source\repos\4Chan Grabber\Downloads\test.jpg",
+            ImageSourceId = fourChan.Id,
+            Status = DownloadStatus.New,
+            RequestTime = DateTime.Now - new TimeSpan(0,0,2)
+        };
+
+        _context.DownloadQueue.Add(download);
+
+        download = new DownloadQueue
+        {
+            DownloadUrl = "https://thumb-cdn77.xvideos-cdn.com/f2f39725-0f0a-44a4-abd0-082bd350b5d8/0/xv_14_p.jpg",
+            TargetPath = @"C:\Users\fafni\source\repos\4Chan Grabber\Downloads\test.jpg",
+            ImageSourceId = fourChan.Id,
+            Status = DownloadStatus.New,
+            RequestTime = DateTime.Now - new TimeSpan(0,0,3)
+        };
+
+        _context.DownloadQueue.Add(download);
+
+        download = new DownloadQueue
+        {
+            DownloadUrl = "https://thumb-cdn77.xvideos-cdn.com/f2f39725-0f0a-44a4-abd0-082bd350b5d8/0/xv_14_p.jpg",
+            TargetPath = @"C:\Users\fafni\source\repos\4Chan Grabber\Downloads\test.jpg",
+            ImageSourceId = fourChan.Id,
+            Status = DownloadStatus.New,
+            RequestTime = DateTime.Now - new TimeSpan(0,0,4)
         };
 
         _context.DownloadQueue.Add(download);
